@@ -9,12 +9,10 @@ Key points:
 - Only delete/revoke if refresh fails or user explicitly revokes
 """
 
-import json
 import os
 from datetime import datetime, timedelta
 from typing import Optional
 from dotenv import load_dotenv
-import asyncpg
 from supabase import create_client, Client
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
