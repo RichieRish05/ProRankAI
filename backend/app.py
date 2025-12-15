@@ -5,7 +5,6 @@ from dotenv import load_dotenv
 from fastapi.middleware.cors import CORSMiddleware
 import os
 
-
 load_dotenv()
 
 app = FastAPI(title="Polaris API", version="1.0.0")
@@ -18,8 +17,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-
 
 # Include routers
 app.include_router(oauth_router, prefix="/api/oauth", tags=["oauth"])

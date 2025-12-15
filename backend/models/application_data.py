@@ -3,13 +3,29 @@ from datetime import datetime
 
 class User(BaseModel):
     user_id: str = Field(..., description="The ID of the user")
-    name: str = Field(..., description="The name of the user")
     email: str = Field(..., description="The email of the user")
-    password: str = Field(..., description="The password of the user")
     created_at: datetime = Field(..., description="The creation date")
-    updated_at: datetime = Field(..., description="The update date")
-    oauth_access_token: str = Field(..., description="The access token of the OAuth credentials")
-    oauth_refresh_token: str = Field(..., description="The refresh token of the OAuth credentials")
+    oauth_access_id: str = Field(..., description="The foreign key to the user's OAuth credentials")
+    jobs: list[Job] = Field(..., description="The jobs the user has started")
+
+class OauthCredentials(BaseModel):
+    oauth_credentials_id: str = Field(..., description="The foreign key to the user's OAuth credentials")
+    user_id: str = Field(..., description="The foreign key to the user's ID")
+    access_token: str = Field(..., description="The access token of the OAuth credentials")
+    refresh_token: str = Field(..., description="The refresh token of the OAuth credentials")
+    token_uri: str = Field(..., description="The token URI of the OAuth credentials")
+    client_id: str = Field(..., description="The client ID of the OAuth credentials")
+    client_secret: str = Field(..., description="The client secret of the OAuth credentials")
+    scopes: list[str] = Field(..., description="The scopes of the OAuth credentials")
+    expiry: datetime = Field(..., description="The expiry date of the OAuth credentials")
+    created_at: datetime = Field(..., description="The creation date")
+
+
+class Job(BaseModel):
+    job_id: str = Field(..., description="The ID of the job")
+    name: str = Field(..., description="The name of the job")
+    created_at: datetime = Field(..., description="The creation date")
+    google_drive_folder_id: str = Field(..., description="The Google Drive file ID of the job description")
 
 class ResumeData(BaseModel):
     mongodb_id: str = Field(..., description="The MongoDB Object ID of the Resume Text")

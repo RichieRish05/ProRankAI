@@ -5,6 +5,7 @@ from fastapi import Response, Cookie, HTTPException, Request
 from dotenv import load_dotenv
 from googleapiclient.discovery import build
 import os
+from google.oauth2.credentials import Credentials
 
 load_dotenv()
 
@@ -25,7 +26,7 @@ async def get_oauth_redirect_uri(response: Response, request: Request):
         prompt='consent'        # Force consent screen to get refresh token
     )
 
-    # Create redirect response first
+    # Create redirect response
     redirect_response = RedirectResponse(redirect_url)
     
     # Set state cookie on the redirect response
@@ -59,6 +60,8 @@ async def oauth_callback(
     credentials = flow.credentials
 
 
+
+
     # Get user email using Google API client
     service = build('oauth2', 'v2', credentials=credentials)
     userinfo = service.userinfo().get().execute()
@@ -67,12 +70,12 @@ async def oauth_callback(
     if not email:
         raise HTTPException(status_code=400, detail="Could not retrieve email from Google")
 
-    print(f"Credentials: {credentials}")
-    print(f"Email: {email}")
-    print(f"User Info: {userinfo}")
-    # TODO: Store credentials in database (per the service docstring)
-    # Then redirect to app without code/state since OAuth is complete
 
-    # Perhaps oauth_credentials_service.store_credentials(email, flow, credentials)?
-    
-    return RedirectResponse(f"{os.getenv('FRONTEND_URL')}/")
+    # Store credentials in database
+    try:
+        await oauth_credentials_service.store_credentials(email, credentials)
+    except Exception as e:
+        print(f"Error storing credentials: {e}")
+        raise HTTPException(status_code=500, detail="Failed to store credentials")
+
+    return RedirectResponse(f"{BASE_URL}/")
