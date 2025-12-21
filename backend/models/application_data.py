@@ -41,3 +41,4 @@ class ResumeData(BaseModel):
 
 class StartJobRequest(BaseModel):
     folder_id: str = Field(..., description="The Google Drive folder ID")
+    name: str = Field(..., description="The name of the job")

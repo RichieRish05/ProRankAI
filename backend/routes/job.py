@@ -11,10 +11,12 @@ from supabase import create_client, Client
 import logging
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
+from supabase import create_client, Client
 
 load_dotenv()
 
 router = APIRouter()
+
 
 @router.post("/start-job")
 async def start_job(request: Request, body: StartJobRequest):
@@ -29,13 +31,24 @@ async def start_job(request: Request, body: StartJobRequest):
     credentials_dict = await OAuthCredentialsService.get_credentials_dict(user_id)
 
     try:
+
+        # Upload the job to postgres
+        supabase = create_client(os.getenv("SUPABASE_URL"), os.getenv("SUPABASE_SERVICE_ROLE_KEY"))
+        job = supabase.table("jobs").insert({
+            "user_id": user_id,
+            "google_id": body.folder_id,
+            "status": "pending",
+            "name": body.name,
+        }).execute().data[0]
+        
         await inngest_client.send(
             inngest.Event(
                 name="app/start-job",
                 data={
                     "user_id": user_id,
                     "credentials_dict": credentials_dict,
-                    "folder_id": body.folder_id
+                    "folder_id": body.folder_id,
+                    "job_id": job["id"]
                 },
             )
         )
@@ -50,10 +63,34 @@ inngest_client = inngest.Inngest(
     logger=logging.getLogger("uvicorn"),
 )
 
+
+async def kill_job(ctx: inngest.Context) -> None:
+    """
+    Kill a job
+    """
+    job_id = ctx.event.data["event"]["data"]["job_id"]
+    supabase = create_client(os.getenv("SUPABASE_URL"), os.getenv("SUPABASE_SERVICE_ROLE_KEY"))
+    supabase.table("jobs").update({
+        "status": "failed"
+    }).eq("id", job_id).execute()
+
+async def kill_resume_job(ctx: inngest.Context) -> None:
+    """
+    Kill a resume job
+    """
+    resume_job_id = ctx.event.data["event"]["data"]["resume_job_id"]
+    supabase = create_client(os.getenv("SUPABASE_URL"), os.getenv("SUPABASE_SERVICE_ROLE_KEY"))
+    supabase.table("resumes").update({
+        "status": "failed"
+    }).eq("id", resume_job_id).execute()
+
 @inngest_client.create_function(
     fn_id="start-job",
-    trigger=inngest.TriggerEvent(event="app/start-job")
+    trigger=inngest.TriggerEvent(event="app/start-job"),
+    retries=0,
+    on_failure= kill_job
 )
+
 async def start_job(ctx: inngest.Context) -> None:
     """
     Start a folder review job
@@ -62,15 +99,10 @@ async def start_job(ctx: inngest.Context) -> None:
     folder_id = ctx.event.data["folder_id"]
     user_id = ctx.event.data["user_id"]
     credentials_dict = ctx.event.data["credentials_dict"]
-    
-    # Upload the job to postgres
-    job = await ctx.step.run(
-        "upload-job-id",
-        upload_job_id,
-        user_id,
-        folder_id,
-    )
+    job_id = ctx.event.data["job_id"]
 
+
+    raise RuntimeError("Test error")
     # Get all pdf files within the chosen folder
     files = await ctx.step.run(
         "get-files",
@@ -80,29 +112,31 @@ async def start_job(ctx: inngest.Context) -> None:
         credentials_dict,
     )
 
+    # Invoke score-resume function for each file
     for file in files:
-        await ctx.step.invoke(
-            "score-resume",
-            function=score_resume,
-            data={
-                "file": file,
-                "job_id": job["id"],
-                "credentials_dict": credentials_dict
-            }
-        )
+        try:
+            # Upload the resume id to postgres
+            resume_job = await ctx.step.run(
+                "upload-resume-id",
+                upload_resume_id,
+                file["id"],
+                job_id,
+            )
+            # Queue the score-resume function
+            await ctx.step.invoke(
+                "score-resume",
+                function=score_resume,
+                data={
+                    "file_id": file["id"],
+                    "resume_job_id": resume_job["id"],
+                    "job_id": job_id,
+                    "credentials_dict": credentials_dict
+                }
+            )
+        except Exception as e:
+            # Log error but continue processing other files
+            logging.error(f"Failed to invoke score-resume for file {file.get('id', 'unknown')}: {e}")
 
-async def upload_job_id(user_id: str, folder_id: str) -> dict:
-    """
-    Upload the job to supabase
-    """
-    supabase = create_client(os.getenv("SUPABASE_URL"), os.getenv("SUPABASE_SERVICE_ROLE_KEY"))
-    job = supabase.table("jobs").insert({
-        "user_id": user_id,
-        "google_id": folder_id,
-        "status": "pending"
-    }).execute().data
-
-    return job[0]
 
 
 async def get_files(folder_id: str, user_id: str, credentials_dict: dict) -> list[dict]:
@@ -149,37 +183,35 @@ STEPS:
 
 @inngest_client.create_function(
     fn_id="score-resume",
-    trigger=inngest.TriggerEvent(event="app/score-resume")
+    trigger=inngest.TriggerEvent(event="app/score-resume"),
+    on_failure=kill_resume_job
 )
 async def score_resume(ctx: inngest.Context) -> None:
     """
     Score a resume
     """
-    file = ctx.event.data["file"]
+    file_id = ctx.event.data["file_id"]
+    resume_job_id = ctx.event.data["resume_job_id"]
     job_id = ctx.event.data["job_id"]
     credentials_dict = ctx.event.data["credentials_dict"]
     
     # Convert dict back to Credentials object
     credentials = OAuthCredentialsService.get_credentials(credentials_dict)
 
-    # Upload the resume id to postgres
-    resume = await ctx.step.run(
-        "upload-resume-id",
-        upload_resume_id,
-        file["id"],
-        job_id,
-    )
 
 
-async def upload_resume_id(resume_id: str, job_id: str) -> dict:
+
+async def upload_resume_id(file_id: str, job_id: str) -> dict:
     """
     Upload the resume id to postgres
     """
     supabase = create_client(os.getenv("SUPABASE_URL"), os.getenv("SUPABASE_SERVICE_ROLE_KEY"))
     resume = supabase.table("resumes").insert({
-        "google_id": resume_id,
+        "google_id": file_id,
         "job_id": job_id,
         "status": "pending"
     }).execute().data
 
     return resume[0]
+
+
