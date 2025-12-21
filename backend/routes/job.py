@@ -102,7 +102,6 @@ async def start_job(ctx: inngest.Context) -> None:
     job_id = ctx.event.data["job_id"]
 
 
-    raise RuntimeError("Test error")
     # Get all pdf files within the chosen folder
     files = await ctx.step.run(
         "get-files",
@@ -167,18 +166,6 @@ async def get_files(folder_id: str, user_id: str, credentials_dict: dict) -> lis
 
     return files
 
-"""
-STEPS:
-
-1. Start a job by uploading the job id to postgres
-2. Get all file ids within the folder
-3. For each file id, run a queue job
-    a. Upload the resume id to postgres
-    b. Download the file on modal and extract the text and upload it to mongo db
-    c. Get the text from mongo db and score the resume
-    d. Update the resume status and job status in postgres
-
-"""
 
 
 @inngest_client.create_function(
@@ -215,3 +202,15 @@ async def upload_resume_id(file_id: str, job_id: str) -> dict:
     return resume[0]
 
 
+    """
+STEPS:
+
+1. Start a job by uploading the job id to postgres
+2. Get all file ids within the folder
+3. For each file id, run a queue job
+    a. Upload the resume id to postgres
+    b. Download the file on modal and extract the text and upload it to mongo db
+    c. Get the text from mongo db and score the resume
+    d. Update the resume status and job status in postgres
+
+"""

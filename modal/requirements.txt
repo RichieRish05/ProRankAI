@@ -1,0 +1,23 @@
+fastapi[standard]
+uvicorn[standard]
+python-dotenv
+
+# Google APIs
+google-auth
+google-auth-oauthlib
+google-auth-httplib2
+google-api-python-client
+google-cloud-storage>=2.0.0
+
+
+# Database
+supabase
+
+# heavy server for downloading and processing PDFs
+modal
+
+# PDF Processing
+pymupdf
+
+# AI
+openai
