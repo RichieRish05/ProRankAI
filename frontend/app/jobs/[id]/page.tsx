@@ -42,40 +42,59 @@ export default function JobDetailPage() {
   const [searchQuery, setSearchQuery] = useState("")
   const [resumes, setResumes] = useState<Resume[]>([])
   const [stats, setStats] = useState<Stats>({ average_score: 0, high_score: 0, lowest_score: 0, num_resumes: 0 })
-  const { user, isAuthenticated, logout, setUser} = useAuthStore()
+  const { isAuthenticated, fetchUser, isInitializing} = useAuthStore()
   const [isLoading, setIsLoading] = useState(true)
   const [jobName, setJobName] = useState("")
   const [jobDate, setJobDate] = useState("")
 
 
-  useEffect(() => {
-    if (!isAuthenticated){
-      setResumes([])
-      router.push("/")
-      return
-    }
-    setIsLoading(true)
-    const fetchResumes = async () => {
-      try {
-        const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/query/get-resumes?job_id=${params.id}`, {
-          credentials: 'include',
-        })
-        if (!response.ok){
-          setResumes([])
-          return
-        }
-        const data = await response.json()
-        setResumes(data.resumes)
-        setStats(data.stats)
-        setJobName(data.job_name)
-        setJobDate(data.job_date ? new Date(data.job_date).toLocaleDateString() : "Unknown Date")
-      } finally {
-        setIsLoading(false)
-      }
-    }
 
-    fetchResumes()
-  }, [isAuthenticated, params.id])
+  const fetchResumes = async () => {
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/query/get-resumes?job_id=${params.id}`, {
+        credentials: 'include',
+      })
+      if (!response.ok){
+        setResumes([])
+        return
+      }
+      const data = await response.json()
+      setResumes(data.resumes)
+      setStats(data.stats)
+      setJobName(data.job_name)
+      setJobDate(data.job_date ? new Date(data.job_date).toLocaleDateString() : "Unknown Date")
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    const initialize = async () => {
+      await fetchUser()
+      fetchResumes()
+    }
+    initialize()
+  }, [])
+
+  useEffect(() => {
+    if (!isInitializing && !isAuthenticated) {
+      router.push("/")
+    }
+  }, [isInitializing, isAuthenticated, router])
+
+  if (isInitializing || isLoading || (!isInitializing && !isAuthenticated)) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <div className="flex flex-col items-center gap-4">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
+          <p className="text-sm text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    )
+  }
+
+
+
 
   const filteredResumes = resumes.filter((resume) =>
     resume.file_name?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false,
@@ -102,6 +121,8 @@ export default function JobDetailPage() {
     )
   }
 
+
+
   const getStatusBadge = (status: "scored" | "pending" | "failed") => {
     if (status === "scored")
       return <Badge variant="default">Scored</Badge>
@@ -110,6 +131,8 @@ export default function JobDetailPage() {
     if (status === "failed")
       return <Badge variant="destructive">Failed</Badge>
   }
+
+
 
   return (
     <DashboardLayout>
@@ -160,11 +183,7 @@ export default function JobDetailPage() {
                 <CardDescription>Total Resumes</CardDescription>
               </CardHeader>
               <CardContent>
-                {isLoading ? (
-                  <div className="text-muted-foreground font-semibold animate-pulse">Calculating...</div>
-                ) : (
                   <div className="text-3xl font-semibold">{stats.num_resumes}</div>
-                )}
               </CardContent>
             </Card>
             <Card>
@@ -172,11 +191,7 @@ export default function JobDetailPage() {
                 <CardDescription>Average Score</CardDescription>
               </CardHeader>
               <CardContent>
-                {isLoading ? (
-                  <div className="text-muted-foreground font-semibold animate-pulse">Calculating...</div>
-                ) : (
-                  <div className="text-3xl font-semibold">{stats.average_score}</div>
-                )}
+                  <div className="text-3xl font-semibold">{stats.average_score}</div>  
               </CardContent>
             </Card>
             <Card>
@@ -184,11 +199,7 @@ export default function JobDetailPage() {
                 <CardDescription>Top Score</CardDescription>
               </CardHeader>
               <CardContent>
-                {isLoading ? (
-                  <div className="text-muted-foreground font-semibold animate-pulse">Calculating...</div>
-                ) : (
                   <div className="text-3xl font-semibold">{stats.high_score}</div>
-                )}
               </CardContent>
             </Card>
             <Card>
@@ -196,11 +207,7 @@ export default function JobDetailPage() {
                 <CardDescription>Lowest Score</CardDescription>
               </CardHeader>
               <CardContent>
-                {isLoading ? (
-                  <div className="text-muted-foreground font-semibold animate-pulse">Calculating...</div>
-                ) : (
                   <div className="text-3xl font-semibold">{stats.lowest_score}</div>
-                )}
               </CardContent>
             </Card>
           </div>
@@ -240,12 +247,8 @@ export default function JobDetailPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {isLoading ? (
-                      <TableRow>
-                        <TableCell colSpan={5} className="h-24 text-center text-muted-foreground animate-pulse">Loading...</TableCell>
-                      </TableRow>
-                    ) : (
-                      filteredResumes.length > 0 ? (
+
+                      {filteredResumes.length > 0 ? (
                       filteredResumes.map((resume) => (
                         <TableRow key={resume.id} className="cursor-pointer">
                           <TableCell className="font-medium">
@@ -277,8 +280,7 @@ export default function JobDetailPage() {
                         <TableRow>
                           <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">No candidates found matching "{searchQuery}"</TableCell>
                         </TableRow>
-                      )
-                    )}
+                      )}
                   </TableBody>
                 </Table>
               </div>

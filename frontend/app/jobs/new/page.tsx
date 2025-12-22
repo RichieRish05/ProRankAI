@@ -19,7 +19,7 @@ interface DriveFolder {
 
 export default function NewJobPage() {
   const router = useRouter()
-  const { user, isAuthenticated, logout, setUser} = useAuthStore()
+  const { user, isAuthenticated, logout, setUser, isInitializing} = useAuthStore()
   const [step, setStep] = useState(1)
   const [selectedFolder, setSelectedFolder] = useState<DriveFolder | null>(null)
   const [selectedFolderName, setSelectedFolderName] = useState<string | null>(null)
@@ -31,12 +31,17 @@ export default function NewJobPage() {
   const [isLoading, setIsLoading] = useState(false)
 
   useEffect(() => {
+    // Wait for auth initialization to complete before checking authentication
+    if (isInitializing) {
+      return
+    }
+    
     if (!isAuthenticated) {
       router.push("/")
       return
     }
     fetchDriveFiles();
-  }, [isAuthenticated, router])
+  }, [isAuthenticated, isInitializing, router])
 
 
   const fetchDriveFiles = async (fromBeginning: boolean = false, pageSize: number = 10) => {

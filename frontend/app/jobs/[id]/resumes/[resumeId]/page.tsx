@@ -16,13 +16,13 @@ interface ScoreBreakdown {
   maxScore: number
 }
 
-const mockScoreBreakdown: ScoreBreakdown[] = [
-  { category: "Technical Skills", score: 95, maxScore: 100 },
-  { category: "Experience", score: 88, maxScore: 100 },
-  { category: "Education", score: 92, maxScore: 100 },
-  { category: "Leadership", score: 85, maxScore: 100 },
-  { category: "Cultural Fit", score: 90, maxScore: 100 },
-]
+
+
+interface ScoreBreakdown {
+  gpa_contribution: number
+  experience_contribution: number
+  impact_quality_contribution: number
+}
 
 interface Resume {
   id: number
@@ -39,6 +39,9 @@ interface Resume {
   school_year: string | null
   text_url: string
   view_url: string
+  gpa_contribution: number | null
+  experience_contribution: number | null
+  impact_quality_contribution: number | null
 }
 
 export default function ResumeDetailPage() {
@@ -46,36 +49,53 @@ export default function ResumeDetailPage() {
   const router = useRouter()
   const [resume, setResume] = useState<Resume | null>(null)
   const [isLoading, setIsLoading] = useState(true)
-  const { user, isAuthenticated, logout, setUser} = useAuthStore()
+  const { isAuthenticated, fetchUser, isInitializing} = useAuthStore()
 
+
+  const fetchResume = async () => {
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/query/get-resume?resume_id=${params.resumeId}`, {
+        credentials: 'include',
+      })
+      if (!response.ok){
+        setResume(null)
+        throw new Error("Failed to fetch resume")
+      }
+      const data = await response.json()
+      setResume(data)
+    } catch (error) {
+      setResume(null)
+    } finally {
+      setIsLoading(false)
+    }
+  }
 
   useEffect(() => {
-    if (!isAuthenticated){
-      router.push("/")
-      setResume(null)
-      setIsLoading(false)
-      return
-    }
-    const fetchResume = async () => {
+    const initialize = async () => {
       setIsLoading(true)
-      try {
-        const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/query/get-resume?resume_id=${params.resumeId}`, {
-          credentials: 'include',
-        })
-        if (!response.ok){
-          setResume(null)
-          throw new Error("Failed to fetch resume")
-        }
-        const data = await response.json()
-        setResume(data)
-      } catch (error) {
-        setResume(null)
-      } finally {
-        setIsLoading(false)
-      }
+      await fetchUser()
+      fetchResume()
     }
-    fetchResume()
-  }, [isAuthenticated, params.resumeId])
+    initialize()
+  }, [])
+
+  useEffect(() => {
+    if (!isInitializing && !isAuthenticated) {
+      router.push("/")
+    }
+  }, [isInitializing, isAuthenticated, router])
+
+  // Show loading state while initializing, loading data, or if not authenticated (to prevent flash before redirect)
+  if (isInitializing || isLoading || (!isInitializing && !isAuthenticated)) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <div className="flex flex-col items-center gap-4">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
+          <p className="text-sm text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    )
+  }
 
 
   const getSuggestions = (score: number) => {
@@ -113,13 +133,7 @@ export default function ResumeDetailPage() {
 
           {/* Header */}
           <div className="mb-8 flex items-start justify-between">
-            <div>
-              {isLoading ? (
-                <h1 className="text-3xl font-semibold tracking-tight animate-pulse text-muted-foreground">Loading...</h1>
-              ) : (
               <h1 className="text-3xl font-semibold tracking-tight">{resume?.file_name}</h1>
-              )}
-            </div>
           </div>
 
           <div className="grid gap-8 lg:grid-cols-3">
@@ -130,26 +144,18 @@ export default function ResumeDetailPage() {
                   <CardTitle>Resume Preview</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  {isLoading ? (
-                    <div className="aspect-[8.5/11] rounded-lg border border-border bg-muted/50 flex items-center justify-center animate-pulse">
+
+                  <div className="aspect-[8.5/11] rounded-lg border border-border bg-muted/50 flex items-center justify-center">
+                    {resume?.preview_url ? (
+                    <iframe src={resume?.preview_url} className="w-full h-full" title="Resume Preview" />
+                    ) : (
                       <div className="text-center">
                         <FileText className="mx-auto h-12 w-12 text-muted-foreground" />
-                        <p className="mt-2 text-sm text-muted-foreground animate-pulse">Loading...</p>
+                        <p className="mt-2 text-sm text-muted-foreground">No preview available</p>
                       </div>
-                    </div>
-                  ) : (
-                  
-                    <div className="aspect-[8.5/11] rounded-lg border border-border bg-muted/50 flex items-center justify-center">
-                      {resume?.preview_url ? (
-                      <iframe src={resume?.preview_url} className="w-full h-full" title="Resume Preview" />
-                      ) : (
-                        <div className="text-center">
-                          <FileText className="mx-auto h-12 w-12 text-muted-foreground" />
-                          <p className="mt-2 text-sm text-muted-foreground">No preview available</p>
-                        </div>
-                      )}
-                    </div>
-                  )}
+                    )}
+                  </div>
+
                 </CardContent>
               </Card>
             </div>
@@ -169,18 +175,15 @@ export default function ResumeDetailPage() {
                     </div>
                     <div className="flex-1">
                       <Progress value={resume?.score} className="h-3" />
-                      {isLoading ? (
-                        <p className="mt-2 text-sm text-muted-foreground animate-pulse">Calculating...</p>
-                      ) : (
                       <p className="mt-2 text-sm text-muted-foreground">{getSuggestions(resume?.score ?? 0)}</p>
-                      )}
+ 
                     </div>
                   </div>
                 </CardContent>
               </Card>
 
               {/* GPA */}
-              <AcademicCard gpa={resume?.gpa ?? 0} internships={resume?.num_internships ?? 0} schoolYear={resume?.school_year ?? "N/A"} />
+              <AcademicCard gpa={resume?.gpa ?? "N/A"} internships={resume?.num_internships ?? 0} schoolYear={resume?.school_year ?? "N/A"} />
               
 
               {/* Score Breakdown */}
@@ -190,18 +193,32 @@ export default function ResumeDetailPage() {
                   <CardDescription>Performance across evaluation categories</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-4">
-                    {mockScoreBreakdown.map((item) => (
-                      <div key={item.category} className="space-y-2">
-                        <div className="flex items-center justify-between text-sm">
-                          <span className="font-medium">{item.category}</span>
-                          <span className="text-muted-foreground">
-                            {item.score}/{item.maxScore}
-                          </span>
-                        </div>
-                        <Progress value={(item.score / item.maxScore) * 100} className="h-2" />
+                  <div className="space-y-4">             
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="font-medium">{"GPA Contribution"}</span>
+                        <span>
+                          {resume?.gpa_contribution}/{40}
+                        </span>
                       </div>
-                    ))}
+                      <Progress value={(resume?.gpa_contribution ?? 0)/40 * 100} className="h-2" />
+                  </div>
+                  <div className="space-y-4">             
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="font-medium">{"Experience Contribution"}</span>
+                        <span>
+                          {resume?.experience_contribution}/{40}
+                        </span>
+                      </div>
+                      <Progress value={(resume?.experience_contribution ?? 0)/40 * 100} className="h-2" />
+                  </div>
+                  <div className="space-y-4">             
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="font-medium">{"Impact Quality Contribution"}</span>
+                        <span>
+                          {resume?.impact_quality_contribution}/{20}
+                        </span>
+                      </div>
+                      <Progress value={(resume?.impact_quality_contribution ?? 0)/20* 100} className="h-2" />
                   </div>
                 </CardContent>
               </Card>
@@ -216,7 +233,7 @@ export default function ResumeDetailPage() {
 
 
 interface AcademicCardProps {
-  gpa: number
+  gpa: number | string
   internships: number
   schoolYear: string
 }
@@ -234,7 +251,7 @@ export function AcademicCard({ gpa, internships, schoolYear }: AcademicCardProps
               </div>
               <span className="text-sm font-medium uppercase tracking-wider text-black">GPA</span>
             </div>
-            <span className="text-4xl font-bold text-black">{gpa.toFixed(2)}</span>
+            <span className="text-4xl font-bold text-black">{typeof gpa === "number" ? gpa.toFixed(2) : gpa}</span>
           </div>
 
           {/* Internships Section */}

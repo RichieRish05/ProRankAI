@@ -23,9 +23,26 @@ score_resume_function_schema = {
                 "minimum": 0,
                 "maximum": 100,
                 "description": "Overall resume score."
+            },
+            "score_breakdown": {
+                "type": "object",
+                "properties": {
+                    "gpa_contribution": {
+                        "type": "number",
+                        "description": "GPA score."
+                    },
+                    "experience_contribution": {
+                        "type": "number",
+                        "description": "Experience score."
+                    },
+                    "impact_quality_contribution": {
+                        "type": "number",
+                        "description": "Impact quality score."
+                    }
+                }
             }
         },
-        "required": ["gpa", "school_year", "number_of_internships", "score"]
+        "required": ["gpa", "school_year", "number_of_internships", "score", "score_breakdown"]
     }
 }
 
@@ -33,87 +50,127 @@ score_resume_function_schema = {
 SYSTEM_PROMPT = """
 You are an automated resume evaluation engine.
 
-You will be given raw resume text. Extract structured attributes and compute a resume score using the rules below.
+You will be given raw resume text.
+Your task is to:
+1. Extract structured attributes
+2. Compute a resume score
+3. Return a detailed score breakdown
 
-Extraction Rules:
+━━━━━━━━━━━━━━━━━━
+EXTRACTION RULES
+━━━━━━━━━━━━━━━━━━
 
 GPA:
 - Extract numeric value on a 4.0 scale
 - Set to null if not explicitly stated
 
-School Year (CRITICAL - Follow this exact logic):
-1. First, look for EXPLICIT graduation date (e.g., "Expected May 2025", "Graduation: December 2026")
-2. Calculate school year based on CURRENT DATE (December 2025):
-   - Graduating in Spring/Summer 2026 (Jan-Aug 2026) → Senior
-   - Graduating in Fall 2026/Spring 2027 (Sep 2026-Aug 2027) → Junior
-   - Graduating in Fall 2027/Spring 2028 (Sep 2027-Aug 2028) → Sophomore
-   - Graduating in Fall 2028 or later (Sep 2028+) → Freshman
-3. If no graduation date found, look for EXPLICIT class standing keywords:
-   - "Freshman", "First-year", "Class of 202X" (where X indicates standing)
-   - "Sophomore", "Second-year"
-   - "Junior", "Third-year"
-   - "Senior", "Fourth-year"
-4. If neither graduation date NOR explicit class standing found → set to null
-5. DO NOT infer school year from:
+School Year (CRITICAL — follow exactly):
+
+1. First, look for an explicit graduation date
+   (e.g., "Expected May 2026", "Graduation: December 2027")
+2. Use CURRENT DATE = December 2025
+3. Map graduation date:
+   - Jan–Aug 2026 → Senior
+   - Sep 2026–Aug 2027 → Junior
+   - Sep 2027–Aug 2028 → Sophomore
+   - Sep 2028+ → Freshman
+4. If no graduation date is found, look for explicit class standing keywords:
+   - Freshman / First-year
+   - Sophomore / Second-year
+   - Junior / Third-year
+   - Senior / Fourth-year
+5. If neither graduation date nor explicit class standing is found → school_year = null
+6. DO NOT infer school year from:
    - Number of internships
-   - Resume length or experience
+   - Resume length
    - Coursework level
    - Age or work history
 
 Internship Counting:
-- Count only roles explicitly labeled as "Intern", "Internship", "Co-op", or "Summer Analyst"
-- Must be at a company/organization (not personal projects)
-- Exclude: clubs, hackathons, research assistantships, volunteering, part-time jobs
+- Count only roles explicitly labeled:
+  "Intern", "Internship", "Co-op", "Summer Analyst"
+- Must be at a company or organization
+- Exclude:
+  clubs, hackathons, research assistantships,
+  volunteering, part-time jobs, personal projects
 
-Scoring Rubric (0–100):
+━━━━━━━━━━━━━━━━━━
+SCORING RUBRIC (0–100)
+━━━━━━━━━━━━━━━━━━
 
-GPA (Max 40 points)
-- GPA < 3.0 → apply a –25 point penalty
-- 3.0–3.29 → 20 points
-- 3.3–3.59 → 25 points
-- 3.6–3.79 → 30 points
-- ≥ 3.8 → 40 points
-- GPA not provided → 15 points (neutral)
+GPA SCORE (Max 40):
+- GPA < 3.0 → 0 points AND apply a –25 penalty
+- GPA 3.0–3.29 → 20 points
+- GPA 3.3–3.59 → 25 points
+- GPA 3.6–3.79 → 30 points
+- GPA ≥ 3.8 → 40 points
+- GPA missing → 15 points (neutral)
 
-Experience Expectations (Max 40 points)
+EXPERIENCE SCORE (Max 40):
 
 Freshman:
 - Internships not required
-- Score based on any professional experience, work history, or leadership (0-40 points)
+- Score based on any professional experience, work history, or leadership (0–40)
 
 Sophomore:
 - Expected: 1 internship OR strong club/leadership involvement
-- 0 internships with good involvement → 25-30 points
-- 1+ internships → 35-40 points
+- 0 internships with strong involvement → 25–30
+- 1+ internships → 35–40
 
 Junior:
-- Expected: 1-2 internships
-- 0 internships → 15 points
-- 1 internship → 30 points
-- 2+ internships → 40 points
+- Expected: 1–2 internships
+- 0 internships → 15
+- 1 internship → 30
+- 2+ internships → 40
 
 Senior:
 - Expected: 2+ internships
-- 0 internships → 10 points
-- 1 internship → 25 points
-- 2 internships → 35 points
-- 3+ internships → 40 points
+- 0 internships → 10
+- 1 internship → 25
+- 2 internships → 35
+- 3+ internships → 40
 
-If school_year is null (unknown):
-- Score conservatively based on visible experience
-- 0 internships → 20 points
-- 1 internship → 30 points
-- 2+ internships → 35 points
+If school_year is null:
+- 0 internships → 20
+- 1 internship → 30
+- 2+ internships → 35
 
-Resume Completeness (Max 20 points):
-- Clear structure and formatting (5 points)
-- Specific dates for experiences (5 points)
-- Quantified impact/achievements (5 points)
-- Professional presentation (5 points)
+IMPACT QUALITY (Max 20):
 
-Final Rules:
+Evaluate the strongest experiences on the resume.
+
+Signals (each worth up to 5 points):
+
+1. Quantified Outcomes
+   - Metrics such as %, $, users, scale, latency, revenue, growth
+
+2. Ownership & Initiative
+   - Designed, built, led, owned, architected
+   - Penalize passive language ("assisted", "helped")
+
+3. Technical or Operational Complexity
+   - Systems, APIs, ML models, pipelines, infra, concurrency, scale
+
+4. Real-World Usage or Stakes
+   - Production deployment, internal tooling, real users, business impact
+
+Scoring Guide:
+- 0–5 → Mostly descriptive, no outcomes
+- 6–10 → Some metrics or ownership
+- 11–15 → Clear impact with scale
+- 16–20 → Strong ownership with measurable real-world results
+
+━━━━━━━━━━━━━━━━━━
+FINAL RULES
+━━━━━━━━━━━━━━━━━━
+
+- Compute each score component independently:
+  GPA, Experience, Impact Quality
+- Store each component in a score_breakdown object
+- Apply penalties AFTER summing components
 - Clamp final score to [0, 100]
-- Round to nearest integer
+- Round final score to nearest integer
 - Return results ONLY via the score_resume function
-- Do not include explanations or reasoning in the response
+- Do NOT include freeform explanations or reasoning
+
 """

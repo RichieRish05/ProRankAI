@@ -6,7 +6,7 @@ import modal
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 import os
-from fastapi import HTTPException, Request
+from fastapi import HTTPException
 import io
 import fitz
 from google.cloud import storage
@@ -14,8 +14,8 @@ import json
 from supabase import create_client, Client
 from openai import OpenAI
 from prompts import score_resume_function_schema, SYSTEM_PROMPT
-APP_NAME = "ProRank"
 
+APP_NAME = "ProRank"
 app = modal.App(APP_NAME) # Initialize modal app
 
 # Define the docker image
@@ -162,7 +162,7 @@ async def score_resume(data: dict) -> dict:
 
 
     response = client.chat.completions.create(
-        model="gpt-4.1",
+        model="gpt-4o",
         temperature=0,
         messages=[
             {"role": "system", "content": SYSTEM_PROMPT},
@@ -187,7 +187,10 @@ async def score_resume(data: dict) -> dict:
         "gpa": arguments["gpa"],
         "school_year": arguments["school_year"],
         "num_internships": arguments["number_of_internships"],
-        "score": arguments["score"]
+        "score": arguments["score"],
+        "gpa_contribution": arguments["score_breakdown"]["gpa_contribution"],
+        "experience_contribution": arguments["score_breakdown"]["experience_contribution"],
+        "impact_quality_contribution": arguments["score_breakdown"]["impact_quality_contribution"]
     }).eq("id", resume_job_id).execute()
 
     return {"success": True, "message": "Resume scored successfully"}

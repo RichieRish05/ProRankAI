@@ -8,6 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { ArrowUpDown, Loader2 } from "lucide-react"
 import { useEffect } from "react"
 import { useAuthStore } from "@/app/store/useAuthStore"
+import { useRouter } from "next/navigation"
 
 interface Job {
   id: string
@@ -21,37 +22,32 @@ interface Job {
 
 
 
-
 export function JobsTable() {
   const [jobs, setJobs] = useState<Job[]>([])
   const [isLoading, setIsLoading] = useState(true)
-  const { user, isAuthenticated, logout, setUser} = useAuthStore()
+  const { isAuthenticated, isInitializing } = useAuthStore()
+
+
 
   useEffect(() => {
-    if (!isAuthenticated){
-      setJobs([])
-      return
-    }
-    
     const fetchJobs = async () => {
-      setIsLoading(true)
-      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/query/get-jobs`, {
-        credentials: 'include',
-      })
-      
-      if (!response.ok) {
+      try {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/query/get-jobs`, {
+          credentials: 'include',
+        })
+        const data = await response.json()
+        setJobs(data)
+      } catch (error) {
+        console.error('Error fetching jobs:', error)
         setJobs([])
         setIsLoading(false)
-        return
+      } finally {
+        setIsLoading(false)
       }
-      const data = await response.json()
-      console.log(data)
-      setJobs(data)
-      setIsLoading(false)
     }
-
     fetchJobs()
-  }, [isAuthenticated])
+  }, [])
+
 
   const getStatusBadge = (status: Job["status"]) => {
     const variants = {
@@ -94,15 +90,8 @@ export function JobsTable() {
             </TableHead>
           </TableRow>
         </TableHeader>
-        {isLoading ? (
           <TableBody>
-            <TableRow>
-              <TableCell colSpan={5} className="text-center">Loading jobs...</TableCell>
-            </TableRow>
-          </TableBody>
-        ) : (
-          <TableBody>
-          {jobs.map((job) => (
+          {jobs.length > 0 && jobs.map((job) => (
             <TableRow key={job.id} className="cursor-pointer">
               <TableCell className="font-medium">
                 <Link href={`/jobs/${job.id}`} className="hover:underline">
@@ -121,7 +110,6 @@ export function JobsTable() {
             </TableRow>
           ))}
           </TableBody>
-        )}
       </Table>
     </div>
 )}

@@ -1,24 +1,22 @@
+# Core API
 fastapi[standard]
-uvicorn[standard]
-python-dotenv
 
-# Google APIs
-google-auth
-google-auth-oauthlib
-google-auth-httplib2
-google-api-python-client
+# Google Auth & APIs
+google-auth>=2.20.0
+google-api-python-client>=2.100.0
+
+# Google Cloud Storage
 google-cloud-core>=2.3.0
-google-cloud-storage>=2.0.0
-
+google-cloud-storage>=2.14.0
 
 # Database
-supabase
+supabase>=2.0.0
 
-# heavy server for downloading and processing PDFs
-modal
+# Modal 
+modal>=0.63.0
 
 # PDF Processing
-pymupdf
+pymupdf>=1.23.0
 
 # AI
-openai
+openai>=1.0.0

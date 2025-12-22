@@ -1,12 +1,35 @@
+"use client"
+
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Plus } from "lucide-react"
 import { DashboardLayout } from "@/components/layout/dashboard-layout"
 import { JobsTable } from "@/components/jobs-table"
+import { useRouter } from "next/navigation"
+import { useAuthStore } from "./store/useAuthStore"
+import { useEffect } from "react"
 
 export default function DashboardPage() {
-  // Toggle between empty state and table view
-  const hasJobs = true // Change to false to see empty state
+  const { isInitializing, fetchUser } = useAuthStore()
+
+  useEffect(() => {
+    const initialize = async () => {
+      await fetchUser()
+    }
+    initialize()
+  }, [])
+
+
+  if (isInitializing) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <div className="flex flex-col items-center gap-4">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
+          <p className="text-sm text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <DashboardLayout>
@@ -20,12 +43,14 @@ export default function DashboardPage() {
             </Link>
           </Button>
         </div>
+        <JobsTable />
+      </main>
+    </DashboardLayout>
+  )
+}
 
-        {hasJobs ? (
-          <JobsTable />
-        ) : (
-          /* Empty State */
-          <div className="flex min-h-[500px] flex-col items-center justify-center rounded-lg border border-dashed border-border bg-card p-12">
+
+{/* <div className="flex min-h-[500px] flex-col items-center justify-center rounded-lg border border-dashed border-border bg-card p-12">
             <div className="flex h-20 w-20 items-center justify-center rounded-full bg-muted">
               <svg
                 className="h-10 w-10 text-muted-foreground"
@@ -52,9 +77,4 @@ export default function DashboardPage() {
                 Create your first review job
               </Link>
             </Button>
-          </div>
-        )}
-      </main>
-    </DashboardLayout>
-  )
-}
+          </div> */}
