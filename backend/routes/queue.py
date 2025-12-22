@@ -12,6 +12,7 @@ import logging
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 from supabase import create_client, Client
+import requests
 
 load_dotenv()
 
@@ -136,6 +137,20 @@ async def start_job(ctx: inngest.Context) -> None:
             # Log error but continue processing other files
             logging.error(f"Failed to invoke score-resume for file {file.get('id', 'unknown')}: {e}")
 
+    await ctx.step.run(
+        "update-job-status",
+        update_job_status,
+        job_id
+    )
+
+async def update_job_status(job_id: int) -> None:
+    """
+    Update the job status
+    """
+    supabase = create_client(os.getenv("SUPABASE_URL"), os.getenv("SUPABASE_SERVICE_ROLE_KEY"))
+    supabase.table("jobs").update({
+        "status": "completed"
+    }).eq("id", job_id).execute()
 
 
 async def get_files(folder_id: str, user_id: str, credentials_dict: dict) -> list[dict]:
@@ -182,10 +197,74 @@ async def score_resume(ctx: inngest.Context) -> None:
     job_id = ctx.event.data["job_id"]
     credentials_dict = ctx.event.data["credentials_dict"]
     
-    # Convert dict back to Credentials object
-    credentials = OAuthCredentialsService.get_credentials(credentials_dict)
+    # Download the resume to GCS bucket
+    await ctx.step.run(
+        "download-resume",
+        download_resume,
+        file_id,
+        credentials_dict,
+        resume_job_id
+    )
+
+    # Generate the score
+    await ctx.step.run(
+        "generate-score",
+        generate_score,
+        resume_job_id
+    )
+
+    # Update the resume status
+    await ctx.step.run(
+        "update-resume-status",
+        update_resume_status,
+        resume_job_id
+    )
 
 
+async def update_resume_status(resume_job_id: int) -> None:
+    """
+    Update the resume status
+    """
+    supabase = create_client(os.getenv("SUPABASE_URL"), os.getenv("SUPABASE_SERVICE_ROLE_KEY"))
+    supabase.table("resumes").update({
+        "status": "scored"
+    }).eq("id", resume_job_id).execute()
+
+    return {"success": True, "message": "Resume status updated"}
+
+
+
+async def download_resume(file_id: str, credentials_dict: dict, resume_job_id: int) -> str:
+    """
+    Download the resume to GCS bucket
+    """
+
+    res = requests.post(
+        "https://richierish05--prorank-download-resume.modal.run",
+        json={
+            "file_id": file_id,
+            "credentials_dict": credentials_dict,
+            "resume_job_id": resume_job_id
+        }
+    )       
+
+    if res.status_code != 200:
+        raise HTTPException(status_code=500, detail=f"Error downloading resume: {res.text}")
+    return res.json()
+
+async def generate_score(resume_job_id: int) -> str:
+    """
+    Generate the score
+    """
+    res = requests.post(
+        "https://richierish05--prorank-score-resume.modal.run",
+        json={
+            "resume_job_id": resume_job_id
+        }
+    )
+    if res.status_code != 200:
+        raise HTTPException(status_code=500, detail=f"Error generating score: {res.text}")
+    return res.json()
 
 
 async def upload_resume_id(file_id: str, job_id: str) -> dict:
@@ -196,21 +275,11 @@ async def upload_resume_id(file_id: str, job_id: str) -> dict:
     resume = supabase.table("resumes").insert({
         "google_id": file_id,
         "job_id": job_id,
-        "status": "pending"
+        "status": "pending",
+        "view_url": f"https://drive.google.com/file/d/{file_id}/view",
+        "preview_url": f"https://drive.google.com/file/d/{file_id}/preview",
     }).execute().data
 
     return resume[0]
 
 
-    """
-STEPS:
-
-1. Start a job by uploading the job id to postgres
-2. Get all file ids within the folder
-3. For each file id, run a queue job
-    a. Upload the resume id to postgres
-    b. Download the file on modal and extract the text and upload it to mongo db
-    c. Get the text from mongo db and score the resume
-    d. Update the resume status and job status in postgres
-
-"""

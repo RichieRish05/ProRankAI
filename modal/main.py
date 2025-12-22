@@ -6,7 +6,7 @@ import modal
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 import os
-from fastapi import HTTPException
+from fastapi import HTTPException, Request
 import io
 import fitz
 from google.cloud import storage
@@ -33,24 +33,38 @@ gcs_secrets = modal.Secret.from_name("gcp-sa-key")
     method="POST",
     docs=True
 )
-def download_resume(data: dict):
+async def download_resume(data: dict):
+    resume_job_id = data.get("resume_job_id")
 
     # Get the resume from the database
-    resume_job_id = data.get("resume_job_id")
     supabase = create_client(os.environ["SUPABASE_URL"], os.environ["SUPABASE_SERVICE_ROLE_KEY"])
     resume = supabase.table("resumes").select("*").eq("id", resume_job_id).execute().data[0]
+
+    # Check if the text already exists in the database
     if resume["text_url"]:
         return {"success": True, "message": "Text already extracted"}
 
-    # Get the credentials from the database
-    credentials_dict = data.get("credentials_dict")
-    if not credentials_dict:
-        raise HTTPException(status_code=400, detail="Credentials dictionary not found")
+    # Build the storage client and bucket
+    creds = json.loads(os.environ["GOOGLE_APPLICATION_CREDENTIALS_JSON"])
+    storage_client = storage.Client.from_service_account_info(creds)
+    bucket = storage_client.bucket(os.environ["GCS_BUCKET_NAME"])
 
+    # Check if the text already exists in GCS
+    blob = bucket.blob(f"extracted_text/{resume['google_id']}.txt")
+    if blob.exists():
+        # Update the resume in the database with a link to the text
+        supabase.table("resumes").update({
+            "text_url": f"https://storage.googleapis.com/prorank-extracted-text/extracted_text/{resume['google_id']}.txt"
+        }).eq("id", resume_job_id).execute()
+        return {"success": True, "message": "Text already in blob storage"}
+
+
+    
+    # Build the credentials object to call the Google Drive API
     credentials = Credentials(    
-        token=credentials_dict["access_token"],
-        refresh_token=credentials_dict["refresh_token"],
-        token_uri=credentials_dict["token_uri"],
+        token=data["credentials_dict"]["access_token"],
+        refresh_token=data["credentials_dict"]["refresh_token"],
+        token_uri=data["credentials_dict"]["token_uri"],
         client_id=os.environ["GOOGLE_CLIENT_ID"],
         client_secret=os.environ["GOOGLE_CLIENT_SECRET"],
         scopes=[
@@ -72,6 +86,7 @@ def download_resume(data: dict):
     pdf_document = fitz.open(stream=file_content, filetype="pdf")
     text_content = ""
     for page_num in range(len(pdf_document)):
+        print(f"Extracting text from page {page_num}")
         page = pdf_document[page_num]
         text_content += page.get_text()
     pdf_document.close()
@@ -79,7 +94,8 @@ def download_resume(data: dict):
 
     # Upload the text to GCS
     try:
-        upload_blob_from_memory(text_content, f"extracted_text/{file_id}.txt")
+        upload_blob_from_memory(storage_client, bucket, text_content, f"extracted_text/{file_id}.txt")
+        print("Text uploaded to GCS successfully")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to upload text to GCS: {str(e)}")
 
@@ -93,14 +109,10 @@ def download_resume(data: dict):
     return {"success": True, "message": "Text extracted successfully"}
 
 
-def upload_blob_from_memory(contents, destination_blob_name):
+def upload_blob_from_memory(storage_client, bucket, contents, destination_blob_name):
     """Uploads a file to the bucket."""
 
-    creds = json.loads(os.environ["GOOGLE_APPLICATION_CREDENTIALS_JSON"])
-    storage_client = storage.Client.from_service_account_info(creds)
-    bucket = storage_client.bucket(os.environ["GCS_BUCKET_NAME"])
     blob = bucket.blob(destination_blob_name)
-
     blob.upload_from_string(
         contents,
         content_type="text/plain; charset=utf-8"
@@ -121,13 +133,21 @@ def download_resume_text(text_url: str) -> str:
 
 
 
+
+
+
+
+
+
+
+
 @app.function(image=image, secrets=[gcp_secrets, gcs_secrets])
 @modal.fastapi_endpoint(
     method="POST",
     docs=True
 )
-def score_resume(data: dict) -> dict:
-
+async def score_resume(data: dict) -> dict:
+    
     resume_job_id = data.get("resume_job_id")
     if not resume_job_id:
         raise HTTPException(status_code=400, detail="Resume job ID not found")
