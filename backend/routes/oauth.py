@@ -47,14 +47,18 @@ async def get_oauth_redirect_uri(response: Response, request: Request):
 
 @router.get("/callback")
 async def oauth_callback(
-    code: str, 
     state: str,
     response: Response,
+    error: str = None,
+    code: str = None, 
     oauth_state: str = Cookie(None)
     ):
 
+    if error:
+        response.delete_cookie(key="oauth_state")
+        return RedirectResponse(f"{BASE_URL}/")
+
     if oauth_state != state:
-        print(f"State mismatch: {oauth_state} != {state}")
         response.delete_cookie(key="oauth_state")
         raise HTTPException(status_code=400, detail="State mismatch")
 
@@ -91,6 +95,7 @@ async def oauth_callback(
     )
 
     return redirect_response
+
 
 
 @router.get("/me")

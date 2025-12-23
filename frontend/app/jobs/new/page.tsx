@@ -76,16 +76,10 @@ export default function NewJobPage() {
     fetchDriveFiles(true);
   }, []);
 
-  useEffect(() => {
-    if (!isInitializing && !isAuthenticated) {
-      router.push("/");
-    }
-  }, [isInitializing, isAuthenticated, router]);
 
   const handleSubmit = async () => {
     setIsSubmitting(true);
     // Simulate job creation
-    console.log(selectedFolder?.id);
     try {
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/job/start-job`,
@@ -267,7 +261,7 @@ export default function NewJobPage() {
               <CardHeader>
                 <CardTitle>Job Details</CardTitle>
                 <CardDescription>
-                  Name your job and add an optional description
+                  Name your job
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
@@ -278,16 +272,6 @@ export default function NewJobPage() {
                     placeholder="e.g., Fall 2024 Internship Applicants"
                     value={jobName}
                     onChange={(e) => setJobName(e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="jobDescription">Description (Optional)</Label>
-                  <Textarea
-                    id="jobDescription"
-                    placeholder="Add notes about this review job..."
-                    value={jobDescription}
-                    onChange={(e) => setJobDescription(e.target.value)}
-                    rows={4}
                   />
                 </div>
                 <div className="flex justify-between pt-4">
