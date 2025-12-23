@@ -34,7 +34,7 @@ async def get_oauth_redirect_uri(response: Response, request: Request):
 
     # Create redirect response and set state cookie on it
     redirect_response = RedirectResponse(redirect_url, status_code=302)
-    response.set_cookie(
+    redirect_response.set_cookie(
         key="oauth_state",
         value=state,
         max_age=600,
@@ -86,7 +86,7 @@ async def oauth_callback(
 
     access_token = JwtService.generate_token(payload)
     redirect_response = RedirectResponse(f"{BASE_URL}")
-    response.set_cookie(
+    redirect_response.set_cookie(
         key="access_token",
         value=access_token,
         max_age=86400,
