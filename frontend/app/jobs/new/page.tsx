@@ -24,7 +24,7 @@ interface DriveFolder {
 
 export default function NewJobPage() {
   const router = useRouter();
-  const { isAuthenticated, isInitializing, fetchUser, setIsInitializing } = useAuthStore();
+  const { isAuthenticated, isInitializing, setIsInitializing } = useAuthStore();
   const [step, setStep] = useState(1);
   const [selectedFolder, setSelectedFolder] = useState<DriveFolder | null>(
     null,
@@ -39,8 +39,14 @@ export default function NewJobPage() {
   const [nextPageToken, setNextPageToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
+  if (!isAuthenticated) {
+    setIsInitializing(true);
+    setTimeout(() => {
+      router.push("/");
+      setIsInitializing(false);
+    }, 1000);
+  }
 
-  setIsInitializing(false);
   const fetchDriveFiles = async (
     fromBeginning: boolean = false,
     pageSize: number = 50,
