@@ -19,6 +19,7 @@ OAuthCredentialsService = OAuthCredentialsService()
 @router.get("/authorize")
 async def get_oauth_redirect_uri(response: Response, request: Request):
     # Check if user is already authenticated
+    print("access_token", request.cookies.get("access_token"))
     payload = JwtService.verify_token(request.cookies.get("access_token"))
     if payload:
         return RedirectResponse(f"{BASE_URL}/", status_code=302)
@@ -38,8 +39,8 @@ async def get_oauth_redirect_uri(response: Response, request: Request):
         value=state,
         max_age=600,
         httponly=True,
-        secure=os.getenv("ENVIRONMENT") == "production", 
-        samesite="lax",  
+        secure=True,              # MUST be True
+        samesite="none",          # MUST be "none" (string, lowercase)
         path="/"
     )
 
@@ -89,8 +90,8 @@ async def oauth_callback(
         value=access_token,
         max_age=86400,
         httponly=True,
-        secure=os.getenv("ENVIRONMENT") == "production",
-        samesite="lax",
+        secure=True,
+        samesite="none",
         path="/"
     )
 
