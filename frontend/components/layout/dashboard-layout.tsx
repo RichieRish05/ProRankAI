@@ -14,11 +14,8 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const handleLogout = () => {
     logout();
     setIsInitializing(true);
-    console.log("Logging out");
     setTimeout(() => {
-      console.log("Redirecting to login");
       router.push("/");
-      console.log("Redirected to login");
     }, 1000);
   };
 

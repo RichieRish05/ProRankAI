@@ -24,7 +24,7 @@ interface DriveFolder {
 
 export default function NewJobPage() {
   const router = useRouter();
-  const { isAuthenticated, isInitializing, setIsInitializing } = useAuthStore();
+  const { isAuthenticated, isInitializing, fetchUser } = useAuthStore();
   const [step, setStep] = useState(1);
   const [selectedFolder, setSelectedFolder] = useState<DriveFolder | null>(
     null,
@@ -39,13 +39,21 @@ export default function NewJobPage() {
   const [nextPageToken, setNextPageToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  if (!isAuthenticated) {
-    setIsInitializing(true);
-    setTimeout(() => {
+  // Initialize auth on mount
+  useEffect(() => {
+    const initialize = async () => {
+      await fetchUser();
+      fetchDriveFiles(true);
+    };
+    initialize();
+  }, [fetchUser]);
+
+  // Redirect if not authenticated after initialization
+  useEffect(() => {
+    if (!isInitializing && !isAuthenticated) {
       router.push("/");
-      setIsInitializing(false);
-    }, 1000);
-  }
+    }
+  }, [isInitializing, isAuthenticated, router]);
 
   const fetchDriveFiles = async (
     fromBeginning: boolean = false,
@@ -67,6 +75,9 @@ export default function NewJobPage() {
           credentials: "include",
         },
       );
+      if (!response.ok) {
+        throw new Error("Failed to fetch drive files");
+      }
       const data = await response.json();
       setDriveFolders(data.files || []);
       setNextPageToken(data.nextPageToken || null);
@@ -78,11 +89,6 @@ export default function NewJobPage() {
       setIsLoading(false);
     }
   };
-
-
-  useEffect(() => {
-    fetchDriveFiles(true);
-  }, []);
 
 
   const handleSubmit = async () => {
