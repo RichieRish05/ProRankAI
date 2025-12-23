@@ -30,7 +30,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
             <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary">
               <FileText className="h-5 w-5 text-primary-foreground" />
             </div>
-            <span className="text-lg font-semibold">ResumeReview</span>
+            <span className="text-lg font-semibold">ProRank</span>
           </Link>
         </div>
 
