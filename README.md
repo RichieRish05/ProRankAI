@@ -1,1 +1,1 @@
-# Polaris
+# ProRankAI
