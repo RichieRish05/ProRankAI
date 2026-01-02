@@ -3,11 +3,12 @@ from services.oauth_credentials_service import OAuthCredentialsService
 from fastapi import HTTPException, Request
 from googleapiclient.discovery import build
 from services.jwt_service import JwtService
+from typing import Optional
 
 router = APIRouter()
 
 @router.get("/drive-folders")
-async def get_drive_folders(request: Request, next_page_token: str = None, page_size: int = 100):
+async def get_drive_folders(request: Request, next_page_token: Optional[str] = None, page_size: int = 100):
     payload = JwtService.verify_token(request.cookies.get("access_token"))
     if not payload:
         raise HTTPException(status_code=401, detail="Unauthorized invalid token")
