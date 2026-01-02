@@ -1,5 +1,13 @@
 from fastapi import FastAPI
-from routes import oauth_router, job_router, inngest_client, start_job, score_resume, query_router
+from routes import (
+    oauth_router,
+    job_router,
+    inngest_client,
+    start_job,
+    score_resume,
+    query_router,
+    google_router,
+)
 import uvicorn
 from dotenv import load_dotenv
 from fastapi.middleware.cors import CORSMiddleware
@@ -11,9 +19,7 @@ import logging
 
 load_dotenv()
 
-
-
-app = FastAPI(title="Polaris API", version="1.0.0")
+app = FastAPI(title="ProRank API", version="1.5.0")
 
 # CORS configuration
 app.add_middleware(
@@ -32,10 +38,11 @@ inngest.fast_api.serve(app, inngest_client, [start_job, score_resume])
 app.include_router(oauth_router, prefix="/api/oauth", tags=["oauth"])
 app.include_router(job_router, prefix="/api/job", tags=["job"])
 app.include_router(query_router, prefix="/api/query", tags=["query"])
+app.include_router(google_router, prefix="/api/google", tags=["google"])
 
 @app.get("/")
 async def root():
-    return {"message": "Welcome to Polaris API"}
+    return {"message": "Welcome to ProRank API"}
 
 
 if __name__ == "__main__":

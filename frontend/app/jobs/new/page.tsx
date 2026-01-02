@@ -53,7 +53,7 @@ export default function NewJobPage() {
     if (!isInitializing && !isAuthenticated) {
       router.push("/");
     }
-  }, [isInitializing, isAuthenticated, router]);
+  }, [isInitializing, isAuthenticated]);
 
   const fetchDriveFiles = async (
     fromBeginning: boolean = false,
@@ -70,7 +70,7 @@ export default function NewJobPage() {
   
     try {
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/oauth/drive-files?${params.toString()}`,
+        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/google/drive-folders?${params.toString()}`,
         {
           credentials: "include",
         },

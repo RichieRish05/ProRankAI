@@ -146,26 +146,3 @@ async def logout(response: Response):
     return {"message": "Logged out successfully"}
 
 
-@router.get("/drive-files")
-async def get_drive_files(request: Request, next_page_token: str = None, page_size: int = 10):
-    payload = JwtService.verify_token(request.cookies.get("access_token"))
-    if not payload:
-        raise HTTPException(status_code=401, detail="Unauthorized invalid token")
-
-    user_id = payload.get("user_id")
-    credentials = await OAuthCredentialsService.get_credentials(user_id)
-
-    service = build('drive', 'v3', credentials=credentials)
-    
-    # Build query parameters
-    query_params = {
-        "q": "mimeType = 'application/vnd.google-apps.folder'",
-        "pageSize": page_size
-    }
-    
-    # Only add pageToken if it's provided and not empty/null
-    if next_page_token and next_page_token != "null":
-        query_params["pageToken"] = next_page_token
-    
-    files = service.files().list(**query_params).execute()
-    return files

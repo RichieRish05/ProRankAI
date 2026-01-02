@@ -12,20 +12,18 @@ Key points:
 import os
 from datetime import datetime, timedelta
 from typing import Optional
-from dotenv import load_dotenv
-from supabase import create_client, Client
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import Flow
-
-
-load_dotenv()
+from services.supabase_service import SupabaseService
 
 CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
 CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
 REDIRECT_URI = os.getenv("GOOGLE_REDIRECT_URI")
 
 class OAuthCredentialsService:
+
+    supabase_service = SupabaseService()
 
     @staticmethod
     def get_flow():
@@ -72,7 +70,7 @@ class OAuthCredentialsService:
         token_uri = credentials.token_uri 
         expiry = credentials.expiry  
 
-        supabase = create_client(os.getenv("SUPABASE_URL"), os.getenv("SUPABASE_SERVICE_ROLE_KEY"))
+        supabase = OAuthCredentialsService.supabase_service.get_supabase()
 
         try:
             user_result = supabase.table("User").select("*").eq("email", email).execute().data
@@ -91,8 +89,8 @@ class OAuthCredentialsService:
             # Check if credentials already exist for this user
             existing_credentials = supabase.table("OauthCredentials").select("*").eq("user_id", user_id).execute().data
 
-            # Google often only returns a refresh_token on the *first* consent for a given user+client.
-            # On subsequent auth flows, credentials.refresh_token may be None — do not overwrite a
+            # Google often only returns a refresh_token on the first consent for a given user+client.
+            # On subsequent auth flows, credentials.refresh_token may be None - do not overwrite a
             # previously stored refresh_token in that case.
             if not refresh_token and existing_credentials:
                 refresh_token = existing_credentials[0].get("refresh_token")
@@ -136,7 +134,7 @@ class OAuthCredentialsService:
         """
         Get credentials dictionary from database
         """
-        supabase = create_client(os.getenv("SUPABASE_URL"), os.getenv("SUPABASE_SERVICE_ROLE_KEY"))
+        supabase = OAuthCredentialsService.supabase_service.get_supabase()
         user = supabase.table("User").select("*").eq("id", user_id).execute().data
         if not user or len(user) == 0:
             raise ValueError(f"No user found for user_id: {user_id}")
