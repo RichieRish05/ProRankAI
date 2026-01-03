@@ -80,6 +80,19 @@ async def oauth_callback(
 
     flow = OAuthCredentialsService.get_flow()
     flow.fetch_token(code=code)
+    REQUIRED_SCOPE = "https://www.googleapis.com/auth/drive.readonly"
+    granted_scopes = set(flow.credentials.scopes or [])
+    
+    if REQUIRED_SCOPE not in granted_scopes:
+        response.delete_cookie(
+            key="oauth_state",
+            path="/",
+            domain= IS_PRODUCTION and ".prorankai.com" or None,
+            samesite="lax",
+            secure=IS_PRODUCTION,
+            httponly=True
+        )
+        return RedirectResponse(f"{BASE_URL}/")
 
 
     # Get user information using Google API client
