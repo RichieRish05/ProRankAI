@@ -79,7 +79,7 @@ export default function JobDetailPage() {
     lowest_score: 0,
     num_resumes: 0,
   });
-  const { isAuthenticated, fetchUser, isInitializing } = useAuthStore();
+  const { user, fetchUser, isInitializing } = useAuthStore();
   const [isLoading, setIsLoading] = useState(true);
   const [jobName, setJobName] = useState("");
   const [jobDate, setJobDate] = useState("");
@@ -102,11 +102,6 @@ export default function JobDetailPage() {
     setIsRefreshing(false);
   };
 
-  useEffect(() => {
-    if (!isInitializing && !isAuthenticated) {
-      router.push("/");
-    }
-  }, [isInitializing, isAuthenticated, router]);
 
   const fetchResumes = async (filters: Filter | null = null) => {
     try {
@@ -146,14 +141,18 @@ export default function JobDetailPage() {
 
   useEffect(() => {
     const initialize = async () => {
-      await fetchUser();
-      fetchResumes(filter);
+      const authStatus = await fetchUser();
+      if (!authStatus) {
+        router.push("/");
+      } else {
+        fetchResumes(filter);
+      }
     };
     initialize();
-  }, []);
+  }, [fetchUser, router]);
 
 
-  if (isInitializing || isLoading || (!isInitializing && !isAuthenticated)) {
+  if (isInitializing || isLoading || (!isInitializing && user === null)) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-4">
@@ -254,7 +253,7 @@ export default function JobDetailPage() {
               <div>
                 <Button
                   variant="outline"
-                  disabled={isRefreshing || isInitializing || !isAuthenticated}
+                  disabled={isRefreshing || isInitializing || user === null}
                   size="sm"
                   onClick={handleRefresh}
                 >

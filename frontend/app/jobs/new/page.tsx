@@ -24,7 +24,7 @@ interface DriveFolder {
 
 export default function NewJobPage() {
   const router = useRouter();
-  const { isAuthenticated, isInitializing, fetchUser } = useAuthStore();
+  const { isInitializing, fetchUser } = useAuthStore();
   const [step, setStep] = useState(1);
   const [selectedFolder, setSelectedFolder] = useState<DriveFolder | null>(
     null,
@@ -43,18 +43,16 @@ export default function NewJobPage() {
   // Initialize auth on mount
   useEffect(() => {
     const initialize = async () => {
-      await fetchUser();
-      fetchDriveFiles(true);
+      const authStatus = await fetchUser();
+      if (!authStatus) {
+        router.push("/");
+      } else {
+        fetchDriveFiles(true);
+      }
     };
     initialize();
-  }, [fetchUser]);
+  }, [fetchUser, router]);
 
-  // Redirect if not authenticated after initialization
-  useEffect(() => {
-    if (!isInitializing && !isAuthenticated) {
-      router.push("/");
-    }
-  }, [isInitializing, isAuthenticated]);
 
   const fetchDriveFiles = async (
     fromBeginning: boolean = false,

@@ -9,8 +9,9 @@ import { useAuthStore } from "./store/useAuthStore";
 import { useEffect } from "react";
 
 export default function DashboardPage() {
-  const { isInitializing, fetchUser, isAuthenticated, setIsInitializing } = useAuthStore();
+  const { isInitializing, fetchUser, user, setIsInitializing } = useAuthStore();
 
+  
   useEffect(() => {
     if (!isInitializing) {
       setIsInitializing(true);
@@ -20,6 +21,7 @@ export default function DashboardPage() {
     };
     initialize();
   }, []);
+  
 
   if (isInitializing) {
     return (
@@ -40,7 +42,7 @@ export default function DashboardPage() {
             Manage and review resume screening jobs
           </p>
           <Button asChild>
-            {isAuthenticated ? (
+            {user !== null ? (
               <Link href="/jobs/new">
                 <Plus className="mr-2 h-4 w-4" />
                 New Review Job

@@ -8,11 +8,14 @@ import { useAuthStore } from "@/app/store/useAuthStore";
 import { useRouter } from "next/navigation";
 
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const { user, isAuthenticated, isInitializing, logout, setIsInitializing } = useAuthStore();
+  const { user, isInitializing, logout, setIsInitializing } = useAuthStore();
   const router = useRouter();
 
   const handleLogout = async () => {
-    await logout();
+    setIsInitializing(true);
+    setTimeout(async () => {
+      await logout();
+    }, 1000);
   };
 
   const handleLogin = () => {
@@ -54,7 +57,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
             </h1>
           </div>
           <div className="flex items-center gap-3">
-            {!isInitializing && !isAuthenticated ? (
+            {!isInitializing && user === null ? (
               <Button variant="outline" size="sm" onClick={handleLogin}>
                 Login
               </Button>
@@ -63,7 +66,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                 Log Out
               </Button>
             )}
-            {!isInitializing && isAuthenticated ? (
+            {!isInitializing && user !== null ? (
               <img
                 src={user?.picture}
                 alt="User Profile Picture"

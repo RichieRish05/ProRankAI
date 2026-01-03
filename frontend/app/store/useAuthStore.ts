@@ -12,25 +12,22 @@ type User = {
 
 type AuthState = {
   user: User | null;
-  isAuthenticated: boolean;
   setUser: (user: User | null) => void;
   logout: () => void;
-  fetchUser: () => Promise<void>;
+  fetchUser: () => Promise<boolean>;
   isInitializing: boolean;
   setIsInitializing: (isInitializing: boolean) => void;
 };
 
 export const useAuthStore = create<AuthState>((set) => ({
   user: null,
-  isAuthenticated: false,
   isInitializing: true,
   setUser: (user) =>
     set({
       user,
-      isAuthenticated: user !== null,
     }),
 
-  fetchUser: async () => {
+  fetchUser: async (): Promise<boolean> => {
     set({ isInitializing: true });
     try {
       const response = await fetch(
@@ -41,14 +38,17 @@ export const useAuthStore = create<AuthState>((set) => ({
       );
       if (response.ok) {
         const data = await response.json();
-        set({ user: data, isAuthenticated: true });
+        set({ user: data });
+        return true;
       } else {
         // 401 or other error status means not authenticated
-        set({ user: null, isAuthenticated: false });
+        set({ user: null });
+        return false;
       }
     } catch (error) {
       console.error("Error during fetchUser:", error);
-      set({ user: null, isAuthenticated: false });
+      set({ user: null });
+      return false;
     } finally {
       set({ isInitializing: false });
     }
@@ -68,7 +68,6 @@ export const useAuthStore = create<AuthState>((set) => ({
     // Clear the in-memory state
     set({
       user: null,
-      isAuthenticated: false,
       isInitializing: false
     });
     redirect("/");

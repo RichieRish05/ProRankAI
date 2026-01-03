@@ -53,7 +53,7 @@ export default function ResumeDetailPage() {
   const router = useRouter();
   const [resume, setResume] = useState<Resume | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const { isAuthenticated, fetchUser, isInitializing } = useAuthStore();
+  const { user, fetchUser, isInitializing } = useAuthStore();
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   const handleRefresh = async () => {
@@ -85,21 +85,19 @@ export default function ResumeDetailPage() {
 
   useEffect(() => {
     const initialize = async () => {
-      setIsLoading(true);
-      await fetchUser();
-      fetchResume();
+      const authStatus = await fetchUser();
+      if (!authStatus) {
+        router.push("/");
+      } else {
+        fetchResume();
+      }
     };
     initialize();
-  }, []);
+  }, [fetchUser, router]);
 
-  useEffect(() => {
-    if (!isInitializing && !isAuthenticated) {
-      router.push("/");
-    }
-  }, [isInitializing, isAuthenticated, router]);
 
   // Show loading state while initializing, loading data, or if not authenticated (to prevent flash before redirect)
-  if (isInitializing || isLoading || (!isInitializing && !isAuthenticated)) {
+  if (isInitializing || isLoading || (!isInitializing && user === null)) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-4">
@@ -151,7 +149,7 @@ export default function ResumeDetailPage() {
             </h1>
             <Button
               variant="outline"
-              disabled={isRefreshing || isInitializing || !isAuthenticated}
+              disabled={isRefreshing || isInitializing || user === null}
               size="sm"
               onClick={handleRefresh}
             >

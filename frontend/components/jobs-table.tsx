@@ -29,7 +29,7 @@ interface Job {
 export function JobsTable() {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const { isAuthenticated, isInitializing, fetchUser } = useAuthStore();
+  const { user, isInitializing, fetchUser } = useAuthStore();
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   const handleRefresh = async () => {
@@ -58,13 +58,13 @@ export function JobsTable() {
   };
 
   useEffect(() => {
-    if (!isInitializing && isAuthenticated) {
+    if (!isInitializing && user !== null) {
       fetchJobs();
-    } else if (!isInitializing && !isAuthenticated) {
+    } else if (!isInitializing && user === null) {
       setJobs([]);
       setIsLoading(false);
     }
-  }, [isInitializing, isAuthenticated]);
+  }, [isInitializing, user]);
 
   const getStatusBadge = (status: Job["status"]) => {
     const variants = {
@@ -89,7 +89,7 @@ export function JobsTable() {
       <div className="flex justify-end mb-4">
         <Button
           variant="outline"
-          disabled={isRefreshing || isInitializing || !isAuthenticated}
+          disabled={isRefreshing || isInitializing || user === null}
           size="sm"
           onClick={handleRefresh}
         >
