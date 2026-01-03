@@ -12,9 +12,3 @@ supabase
 
 # Queue
 inngest
-
-# heavy server for downloading and processing PDFs
-modal
-
-# PDF Processing
-pymupdf

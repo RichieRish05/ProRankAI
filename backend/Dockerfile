@@ -2,12 +2,6 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install system dependencies required for pymupdf and other packages
-RUN apt-get update && apt-get install -y \
-    gcc \
-    g++ \
-    && rm -rf /var/lib/apt/lists/*
-
 # Copy requirements file
 COPY requirements.txt .
 

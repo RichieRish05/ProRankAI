@@ -1,4 +1,4 @@
-from fastapi import APIRouter,Response, Cookie, HTTPException, Request
+from fastapi import APIRouter,Response, Cookie, HTTPException, Request, Query
 from fastapi.responses import RedirectResponse
 
 from services.oauth_credentials_service import OAuthCredentialsService
@@ -7,6 +7,7 @@ from services.jwt_service import JwtService
 
 from dotenv import load_dotenv
 import os
+from typing import Optional, Dict
 
 load_dotenv()
 
@@ -26,15 +27,33 @@ async def get_jobs(request: Request):
     return supabase_service.get_jobs_under_user(user_id)
 
 @router.get("/get-resumes")
-async def get_job(job_id: int, request: Request):
+async def get_job(
+    job_id: int, 
+    request: Request,
+    freshman: bool = False,
+    sophomore: bool = False,
+    junior: bool = False,
+    senior: bool = False,
+    passed: bool = False,
+    failed: bool = False,
+):  
     """
-    Get all resumes for a job
+    Get all resumes for a job with optional filters
     """
     payload = JwtService.verify_token(request.cookies.get("access_token"))
     if not payload:
         raise HTTPException(status_code=401, detail="Unauthorized")
     user_id = payload["user_id"]
-    return supabase_service.get_resumes_under_job(job_id)
+
+    filters = {
+        "Freshman": freshman,
+        "Sophomore": sophomore,
+        "Junior": junior,
+        "Senior": senior,
+        "Passed": passed,
+        "Failed": failed,
+    }
+    return supabase_service.get_resumes_under_job(job_id, filters)
 
 @router.get("/get-resume")
 async def get_resume(resume_id: int, request: Request):

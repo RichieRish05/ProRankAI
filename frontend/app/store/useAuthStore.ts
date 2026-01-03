@@ -1,6 +1,7 @@
 "use client";
 
 import { create } from "zustand";
+import { redirect } from "next/navigation";
 
 type User = {
   id: string;
@@ -70,6 +71,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       isAuthenticated: false,
       isInitializing: false
     });
+    redirect("/");
   },
 
   setIsInitializing: (isInitializing: boolean) => set({ isInitializing }),

@@ -26,12 +26,14 @@ import {
 import {
   ChevronRight,
   Search,
-  Download,
+  LucideUserSearch,
   TrendingUp,
   TrendingDown,
   Minus,
 } from "lucide-react";
 import { useAuthStore } from "@/app/store/useAuthStore";
+import { useFilterStore } from "@/app/store/useFilterStore";
+import { FilterDropdown } from "@/components/filter-dropdown";
 
 interface Resume {
   id: number;
@@ -57,6 +59,15 @@ interface Stats {
   num_resumes: number;
 }
 
+interface Filter {
+  freshman: boolean
+  sophomore: boolean
+  junior: boolean
+  senior: boolean
+  passed: boolean
+  failed: boolean
+}
+
 export default function JobDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -73,21 +84,41 @@ export default function JobDetailPage() {
   const [jobName, setJobName] = useState("");
   const [jobDate, setJobDate] = useState("");
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isFiltering, setIsFiltering] = useState(false);
+  const [filter, setFilter] = useFilterStore(Number(params.id));
+
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
+    setFilter({
+      freshman: false,
+      sophomore: false,
+      junior: false,
+      senior: false,
+      passed: false,
+      failed: false,
+    });
     await fetchResumes();
     setIsRefreshing(false);
   };
 
-  const fetchResumes = async () => {
+  const fetchResumes = async (filters: Filter | null = null) => {
     try {
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/query/get-resumes?job_id=${params.id}`,
-        {
-          credentials: "include",
-        },
-      );
+
+      let queryString = `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/query/get-resumes?job_id=${params.id}`;
+      
+      if (filters) {
+        setIsFiltering(true);
+        const checkedFilters = Object.entries(filters).filter(([_, value]) => value);
+        if (checkedFilters.length > 0){
+          const filterString = checkedFilters.map(([key, value]) => `${key}=${value}`).join("&");
+          queryString += `&${filterString}`;
+        }
+      }
+
+      const response = await fetch(queryString, {
+        credentials: "include",
+      });
       if (!response.ok) {
         setResumes([]);
         return;
@@ -103,22 +134,18 @@ export default function JobDetailPage() {
       );
     } finally {
       setIsLoading(false);
+      setIsFiltering(false);
     }
   };
 
   useEffect(() => {
     const initialize = async () => {
       await fetchUser();
-      fetchResumes();
+      fetchResumes(filter);
     };
     initialize();
   }, []);
 
-  useEffect(() => {
-    if (!isInitializing && !isAuthenticated) {
-      router.push("/");
-    }
-  }, [isInitializing, isAuthenticated, router]);
 
   if (isInitializing || isLoading || (!isInitializing && !isAuthenticated)) {
     return (
@@ -288,15 +315,32 @@ export default function JobDetailPage() {
                     Detailed breakdown of each candidate's evaluation
                   </CardDescription>
                 </div>
-                <div className="relative w-64">
-                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                  <Input
-                    placeholder="Search candidates..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-9"
-                  />
-                </div>
+                <div className="flex flex-row items-center gap-2">
+                  <div className="relative w-64 ">
+                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                      placeholder="Search candidates..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="pl-9"
+                    />
+                  </div>
+                  <FilterDropdown filter={filter} onFilterChange={setFilter} />
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => {
+                      fetchResumes(filter);
+                    }}
+                    className="bg-transparent"
+                  >
+                    {isFiltering ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <LucideUserSearch className="h-4 w-4" />
+                    )}
+                  </Button>
+                  </div>
               </div>
             </CardHeader>
             <CardContent>

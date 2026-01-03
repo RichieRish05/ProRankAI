@@ -22,13 +22,12 @@ async def get_drive_folders(request: Request, next_page_token: Optional[str] = N
     query_params = {
         "q": "mimeType = 'application/vnd.google-apps.folder'",
         "pageSize": page_size,
-        
     }
     
     # Only add pageToken if it's provided and not empty/null
     if next_page_token and next_page_token != "null":
         query_params["pageToken"] = next_page_token
     
-    files = service.files().list(**query_params).execute()
-    return files
+    folders = service.files().list(**query_params).execute()
+    return folders
 

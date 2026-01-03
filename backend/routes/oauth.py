@@ -15,6 +15,7 @@ router = APIRouter()
 
 BASE_URL = os.getenv("FRONTEND_URL")
 OAuthCredentialsService = OAuthCredentialsService()
+IS_PRODUCTION = os.getenv("ENVIRONMENT") == "production"
 
 @router.get("/authorize")
 async def get_oauth_redirect_uri(response: Response, request: Request):
@@ -38,9 +39,9 @@ async def get_oauth_redirect_uri(response: Response, request: Request):
         value=state,
         max_age=600,
         httponly=True,
-        secure=True,
+        secure = IS_PRODUCTION,
         samesite="lax",
-        domain=".prorankai.com",
+        domain= IS_PRODUCTION and ".prorankai.com" or None,
         path="/"
     )
 
@@ -59,9 +60,9 @@ async def oauth_callback(
         response.delete_cookie(
             key="oauth_state",
             path="/",
-            domain=".prorankai.com",
+            domain= IS_PRODUCTION and ".prorankai.com" or None,
             samesite="lax",
-            secure=True,
+            secure = os.getenv("ENVIRONMENT") == "production",
             httponly=True
         )
         return RedirectResponse(f"{BASE_URL}/")
@@ -70,9 +71,9 @@ async def oauth_callback(
         response.delete_cookie(
             key="oauth_state",
             path="/",
-            domain=".prorankai.com",
+            domain= IS_PRODUCTION and ".prorankai.com" or None,
             samesite="lax",
-            secure=True,
+            secure = IS_PRODUCTION,
             httponly=True
         )
         raise HTTPException(status_code=400, detail="State mismatch")
@@ -104,9 +105,9 @@ async def oauth_callback(
         value=access_token,
         max_age=86400,
         httponly=True,
-        secure=True,
+        secure = IS_PRODUCTION,
         samesite="lax",
-        domain=".prorankai.com",
+        domain= IS_PRODUCTION and ".prorankai.com" or None,
         path="/"
     )
 
@@ -138,11 +139,13 @@ async def logout(response: Response):
     response.delete_cookie(
         key="access_token",
         path="/",
-        domain=".prorankai.com",
+        domain= IS_PRODUCTION and ".prorankai.com" or None,
         samesite="lax",
-        secure=True,
+        secure = IS_PRODUCTION,
         httponly=True
     )
+
+
     return {"message": "Logged out successfully"}
 
 
