@@ -14,7 +14,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { ChevronRight, Folder, FileText, Loader2 } from "lucide-react";
+import { ChevronRight, Folder, FileText, Loader2, Search } from "lucide-react";
 import { useAuthStore } from "@/app/store/useAuthStore";
 
 interface DriveFolder {
@@ -38,6 +38,7 @@ export default function NewJobPage() {
   const [driveFolders, setDriveFolders] = useState<any[]>([]);
   const [nextPageToken, setNextPageToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
 
   // Initialize auth on mount
   useEffect(() => {
@@ -88,6 +89,10 @@ export default function NewJobPage() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const filterDriveFolders = (folders: DriveFolder[]) => {
+    return folders.filter((folder) => folder.name.toLowerCase().includes(searchQuery.toLowerCase()));
   };
 
 
@@ -206,13 +211,28 @@ export default function NewJobPage() {
           {step === 1 && (
             <Card>
               <CardHeader>
-                <CardTitle>Select Google Drive Folder</CardTitle>
-                <CardDescription>
-                  Choose a folder containing PDF resumes to review
-                </CardDescription>
+                <div className="flex justify-between items-center gap-2">
+                  <div>
+                    <CardTitle>Select Google Drive Folder</CardTitle>
+                    <CardDescription>
+                      Choose a folder containing PDF resumes to review
+                    </CardDescription>
+                  </div>
+                  <div className="relative w-64 ">
+                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                      placeholder="Search candidates..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="pl-9"
+                    />
+                  </div>
+
+                </div>
+  
               </CardHeader>
               <CardContent>
-                <div className={"grid grid-cols-2 gap-4 h-96 overflow-y-auto"}>
+                <div className={"flex flex-col gap-4 h-96 overflow-y-auto"}>
                   {isLoading ? (
                     <div className="flex flex-col items-center justify-center col-span-2">
                       <Loader2 className="h-8 w-8 animate-spin" />
@@ -221,20 +241,20 @@ export default function NewJobPage() {
                       </p>
                     </div>
                   ) : (
-                    driveFolders.length > 0 && driveFolders.map((folder) => (
+                    driveFolders.length > 0 && filterDriveFolders(driveFolders).length > 0 && filterDriveFolders(driveFolders).map((folder) => (
                       <button
                         key={folder.id}
                         onClick={() => handleFolderClick(folder)}
-                        className={`flex w-full min-h-20 items-center justify-between rounded-lg border p-4 text-left hover:bg-accent ${
+                        className={`flex w-full h-20 items-center justify-between rounded-lg border p-4 text-left hover:bg-accent ${
                           selectedFolder?.id === folder.id
                             ? "border-primary bg-accent"
                             : "border-border"
                         }`}
                       >
-                        <div className="flex items-center gap-3">
+                        <div className="flex w-full items-center gap-3">
                           <Folder className="h-5 w-5 text-muted-foreground" />
                           <div>
-                            <p className="font-medium">{folder.name}</p>
+                            <p className="font-medium">{folder.name.length > 80 ? folder.name.slice(0, 80) + "..." : folder.name}</p>
                           </div>
                         </div>
                       </button>

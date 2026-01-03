@@ -25,8 +25,11 @@ export function useFilterStore(jobId: number) {
   
     const [filters, setFilters] = useState<Filter>(() => {
       // Load from localStorage on initial render
-      const stored = localStorage.getItem(storageKey);
-      return stored ? JSON.parse(stored) : DEFAULT_FILTERS;
+      if (typeof window !== 'undefined') {
+        const stored = localStorage.getItem(storageKey);
+        return stored ? JSON.parse(stored) : DEFAULT_FILTERS;
+      }
+      return DEFAULT_FILTERS;
     });
   
     // Save to localStorage whenever filters change
