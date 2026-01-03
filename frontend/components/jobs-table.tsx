@@ -154,7 +154,7 @@ export function JobsTable() {
                     </Link>
                   </TableCell>
                   <TableCell className="text-muted-foreground">
-                    {job.folder_name}
+                    {job.folder_name.length > 80 ? job.folder_name.slice(0, 80) + "..." : job.folder_name}
                   </TableCell>
                   <TableCell>{getStatusBadge(job.status)}</TableCell>
                   <TableCell className="text-muted-foreground">

@@ -230,9 +230,9 @@ export default function NewJobPage() {
   
               </CardHeader>
               <CardContent>
-                <div className={"flex flex-col gap-4 h-96 overflow-y-auto"}>
+                <div className={"space-y-4 overflow-y-auto h-96"}>
                   {isLoading ? (
-                    <div className="flex flex-col items-center justify-center col-span-2">
+                    <div className="flex flex-col items-center justify-center col-span-2 h-full">
                       <Loader2 className="h-8 w-8 animate-spin" />
                       <p className="text-medium text-muted-foreground">
                         Loading folders...
