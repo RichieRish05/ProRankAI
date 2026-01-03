@@ -102,6 +102,12 @@ export default function JobDetailPage() {
     setIsRefreshing(false);
   };
 
+  useEffect(() => {
+    if (!isInitializing && !isAuthenticated) {
+      router.push("/");
+    }
+  }, [isInitializing, isAuthenticated, router]);
+
   const fetchResumes = async (filters: Filter | null = null) => {
     try {
 
