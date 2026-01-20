@@ -19,4 +19,4 @@ modal>=0.63.0
 pymupdf>=1.23.0
 
 # AI
-openai>=1.0.0
+google-generativeai>=0.8.0

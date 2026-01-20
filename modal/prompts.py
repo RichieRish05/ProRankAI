@@ -1,49 +1,54 @@
-# Function schema   
-score_resume_function_schema = {
-    "name": "score_resume",
-    "description": "Analyze a candidate resume and return GPA, school year, internship count, and an overall score from 0-100.",
-    "parameters": {
-        "type": "object",
-        "properties": {
-            "gpa": {
-                "type": ["number", "null"],
-                "description": "Candidate GPA on a 4.0 scale. Null if not found."
-            },
-            "school_year": {
-                "type": ["string", "null"],
-                "enum": ["Freshman", "Sophomore", "Junior", "Senior", None],
-                "description": "Inferred academic year based on graduation date or explicit class standing."
-            },
-            "number_of_internships": {
-                "type": "number",
-                "description": "Count of professional internships only."
-            },
-            "score": {
-                "type": "number",
-                "minimum": 0,
-                "maximum": 100,
-                "description": "Overall resume score."
-            },
-            "score_breakdown": {
+# Gemini tool declaration
+score_resume_tool = {
+    "function_declarations": [
+        {
+            "name": "score_resume",
+            "description": "Analyze a candidate resume and return GPA, school year, internship count, and an overall score from 0-100.",
+            "parameters": {
                 "type": "object",
                 "properties": {
-                    "gpa_contribution": {
+                    "gpa": {
                         "type": "number",
-                        "description": "GPA score."
+                        "description": "Candidate GPA on a 4.0 scale. Use 0 if not found.",
+                        "nullable": True
                     },
-                    "experience_contribution": {
-                        "type": "number",
-                        "description": "Experience score."
+                    "school_year": {
+                        "type": "string",
+                        "enum": ["Freshman", "Sophomore", "Junior", "Senior"],
+                        "description": "Inferred academic year based on graduation date or explicit class standing.",
+                        "nullable": True
                     },
-                    "impact_quality_contribution": {
-                        "type": "number",
-                        "description": "Impact quality score."
+                    "number_of_internships": {
+                        "type": "integer",
+                        "description": "Count of professional internships only."
+                    },
+                    "score": {
+                        "type": "integer",
+                        "description": "Overall resume score from 0 to 100."
+                    },
+                    "score_breakdown": {
+                        "type": "object",
+                        "properties": {
+                            "gpa_contribution": {
+                                "type": "integer",
+                                "description": "GPA score."
+                            },
+                            "experience_contribution": {
+                                "type": "integer",
+                                "description": "Experience score."
+                            },
+                            "impact_quality_contribution": {
+                                "type": "number",
+                                "description": "Impact quality score."
+                            }
+                        },
+                        "required": ["gpa_contribution", "experience_contribution", "impact_quality_contribution"]
                     }
-                }
+                },
+                "required": ["gpa", "school_year", "number_of_internships", "score", "score_breakdown"]
             }
-        },
-        "required": ["gpa", "school_year", "number_of_internships", "score", "score_breakdown"]
-    }
+        }
+    ]
 }
 
 
@@ -167,9 +172,12 @@ FINAL RULES
 - Compute each score component independently:
   GPA, Experience, Impact Quality
 - Store each component in a score_breakdown object
-- Apply penalties AFTER summing components
+- Calculate the final score by SUMMING all three components:
+  score = gpa_contribution + experience_contribution + impact_quality_contribution
+- Apply any penalties AFTER summing components
 - Clamp final score to [0, 100]
 - Round final score to nearest integer
+- The score field MUST equal the sum of the three breakdown components
 - Return results ONLY via the score_resume function
 - Do NOT include freeform explanations or reasoning
 

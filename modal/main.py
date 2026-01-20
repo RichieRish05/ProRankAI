@@ -1,5 +1,5 @@
 """
-Microservice that downloads resumes from Google Drive and scores them using the Polaris API.
+Microservice that downloads resumes from Google Drive and scores them using the ProRank API
 """
 
 import modal
@@ -12,8 +12,8 @@ import fitz
 from google.cloud import storage
 import json
 from supabase import create_client, Client
-from openai import OpenAI
-from prompts import score_resume_function_schema, SYSTEM_PROMPT
+import google.generativeai as genai
+from prompts import score_resume_tool, SYSTEM_PROMPT
 
 APP_NAME = "ProRank"
 app = modal.App(APP_NAME) # Initialize modal app
@@ -154,39 +154,51 @@ async def score_resume(data: dict) -> dict:
 
     # Create clients
     supabase = create_client(os.environ["SUPABASE_URL"], os.environ["SUPABASE_SERVICE_ROLE_KEY"])
-    client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
+    
+    # Configure Gemini
+    genai.configure(api_key=os.environ["GEMINI_API_KEY"])
+    model = genai.GenerativeModel(
+        model_name="gemini-2.0-flash-exp",
+        tools=[score_resume_tool]
+    )
 
     # Get the resume from the database
     resume = supabase.table("resumes").select("*").eq("id", resume_job_id).execute().data[0]
     resume_text = download_resume_text(resume["text_url"])
 
+    # Create the prompt with system instruction and resume text
+    prompt = f"{SYSTEM_PROMPT}\n\nResume Text:\n{resume_text}"
 
-    response = client.chat.completions.create(
-        model="gpt-4o",
-        temperature=0,
-        messages=[
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": resume_text}
-        ],
-        functions=[score_resume_function_schema],
-        function_call={"name": "score_resume"}
+    # Generate response with tool calling
+    response = model.generate_content(
+        prompt,
+        generation_config=genai.types.GenerationConfig(
+            temperature=0,
+        ),
+        tool_config={'function_calling_config': 'ANY'}
     )
 
-    message = response.choices[0].message
-
-    if not message.function_call:
-        raise HTTPException(status_code=500, detail="Model did not return a function call")
-
-    arguments = message.function_call.arguments
-
-    if isinstance(arguments, str):
-        arguments = json.loads(arguments)
+    # Extract function call from response
+    if not response.candidates or not response.candidates[0].content.parts:
+        raise HTTPException(status_code=500, detail="Model did not return a valid response")
     
+    function_call = None
+    for part in response.candidates[0].content.parts:
+        if hasattr(part, 'function_call') and part.function_call:
+            function_call = part.function_call
+            break
+    
+    if not function_call or function_call.name != "score_resume":
+        raise HTTPException(status_code=500, detail="Model did not return the expected function call")
+
+    # Extract arguments from function call
+    arguments = dict(function_call.args)
+
     # Update the resume in the database with the score
     supabase.table("resumes").update({
         "gpa": arguments["gpa"],
         "school_year": arguments["school_year"],
-        "num_internships": arguments["number_of_internships"],
+        "num_internships": int(arguments["number_of_internships"]),
         "score": arguments["score"],
         "gpa_contribution": arguments["score_breakdown"]["gpa_contribution"],
         "experience_contribution": arguments["score_breakdown"]["experience_contribution"],
