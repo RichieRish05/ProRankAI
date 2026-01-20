@@ -24,7 +24,7 @@ score_resume_tool = {
                     },
                     "score": {
                         "type": "integer",
-                        "description": "Overall resume score from 0 to 100."
+                        "description": "Total resume score from 0 to 100. MUST be the sum of gpa_contribution + experience_contribution + impact_quality_contribution from the score_breakdown."
                     },
                     "score_breakdown": {
                         "type": "object",

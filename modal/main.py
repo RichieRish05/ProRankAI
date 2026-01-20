@@ -193,16 +193,28 @@ async def score_resume(data: dict) -> dict:
 
     # Extract arguments from function call
     arguments = dict(function_call.args)
+    
+    # Gemini returns all numbers as floats, convert to proper types
+    gpa = arguments["gpa"]
+    num_internships = int(arguments["number_of_internships"])
+    gpa_contribution = int(arguments["score_breakdown"]["gpa_contribution"])
+    experience_contribution = int(arguments["score_breakdown"]["experience_contribution"])
+    impact_quality_contribution = int(arguments["score_breakdown"]["impact_quality_contribution"])
+    
+    # Calculate score from breakdown (Gemini often returns 0 for score)
+    calculated_score = gpa_contribution + experience_contribution + impact_quality_contribution
+    score = int(arguments["score"]) if arguments["score"] > 0 else int(calculated_score)
+    score = max(0, min(100, score))  # Clamp to [0, 100]
 
     # Update the resume in the database with the score
     supabase.table("resumes").update({
-        "gpa": arguments["gpa"],
+        "gpa": gpa,
         "school_year": arguments["school_year"],
-        "num_internships": int(arguments["number_of_internships"]),
-        "score": arguments["score"],
-        "gpa_contribution": arguments["score_breakdown"]["gpa_contribution"],
-        "experience_contribution": arguments["score_breakdown"]["experience_contribution"],
-        "impact_quality_contribution": arguments["score_breakdown"]["impact_quality_contribution"]
+        "num_internships": num_internships,
+        "score": score,
+        "gpa_contribution": gpa_contribution,
+        "experience_contribution": experience_contribution,
+        "impact_quality_contribution": impact_quality_contribution
     }).eq("id", resume_job_id).execute()
 
     return {"success": True, "message": "Resume scored successfully"}
